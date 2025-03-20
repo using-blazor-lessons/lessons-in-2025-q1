@@ -18,7 +18,7 @@ Any (Cromium-based) browser will do it, as long it is configured for development
 
 ### 00 - Select - Create a new project
 
-![image info](./Lesson 00 - Setup/00 - Select - Create a new Project.png)
+![Screenshot 00](Lesson00Setup/00-Select-Create_a_new_project.png)
 
 ### 01 - Select - Blazor Web App
 
