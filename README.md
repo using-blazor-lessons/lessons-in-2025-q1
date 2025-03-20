@@ -1,4 +1,6 @@
-# "Using Blazor" lessons in 2025 Q1. Published under MIT No AI Licence.
+# "Using Blazor" Lessons in 2025 Q1
+
+Published under MIT No AI Licence:
 
 - [License](LICENSE.md)
 
@@ -16,7 +18,7 @@ Any (Cromium-based) browser will do it, as long it is configured for development
 
 ### 00 - Select - Create a new project
 
-![Local Image](Lesson 00 - Setup/00 - Select - Create a new Project.png)
+![image info](./Lesson 00 - Setup/00 - Select - Create a new Project.png)
 
 ### 01 - Select - Blazor Web App
 
