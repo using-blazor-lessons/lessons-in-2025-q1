@@ -18,13 +18,20 @@ Any (Cromium-based) browser will do it, as long it is configured for development
 
 ### 00 - Select - Create a new project
 
-![Screenshot 00](Lesson00Setup/00-Select-Create_a_new_project.png)
+![Screenshot 00](lesson_00_setup/00_select_create_a_new_project.png)
 
 ### 01 - Select - Blazor Web App
 
+![Screenshot 01](lesson_00_setup/01_select_blazor_web_app.png)
+
 ### 02 - Configure project name and location
+
+![Screenshot 02](lesson_00_setup/02_configure_project_name_and_location.png)
 
 ### 03 - Configure framework and auto mode
 
+![Screenshot 03](lesson_00_setup/03_configure_framework_and_auto_mode.png)
+
 ### 04 - Run Debug
 
+![Screenshot 04](lesson_00_setup/04_run_debug.png)
