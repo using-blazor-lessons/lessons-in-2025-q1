@@ -4,34 +4,37 @@ Published under MIT No AI Licence:
 
 - [License](LICENSE.md)
 
-## Lesson 00 - Setup
+## Lesson 01 - Auto Mode and DI
 
-First, its up to you to setup the solution we will learn on. Therefore ensure you meet the prequisites:
+Additionally to existing Blazor Render Modes
+- Static server-side
+- Interactive server-side
+- Interactive WebAssembly client-side
 
-- Get a suitable OS, Windows 11 recommended.
-- Install .NET 9.0 SDK. Older Ubuntu releases require additional apt setup. See [Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/core/install/linux-ubuntu-install?tabs=dotnet9&pivots=os-linux-ubuntu-2204)
-- Install IDE, Visual Studio 2022 recommended.
-- Recommended Microsoft Edge.
+Microsoft introduced with .NET 8.0
+- Interactive Auto
 
-Other OS & IDEs would also work, but may not match the sceenshots provided for each lesson.
-Any (Cromium-based) browser will do it, as long it is configured for development and supports WASM etc.
+In the Auto Render Mode pages are rendered first on server side, later on client side.
+This results in various questions to the code structure:
+Where to place Components?
+How to handle runtime behavior in the application lifecycle, expecially the dependency injection?
 
-### 00 - Select - Create a new project
+Good things first: at compile-time most things are settled.
+Open point: dependency injection
+Question: in which di-container-instance is an instance?
 
-![Screenshot 00](lesson_00_setup/00_select_create_a_new_project.png)
+### 00 - View - Program & Program
 
-### 01 - Select - Blazor Web App
+![Screenshot 00](lesson_01_auto_mode_and_di/00_view_program_and_program.png)
 
-![Screenshot 01](lesson_00_setup/01_select_blazor_web_app.png)
+### 01 - Create - Common Services
 
-### 02 - Configure project name and location
+![Screenshot 01](lesson_01_auto_mode_and_di/01_create_common_services.png)
 
-![Screenshot 02](lesson_00_setup/02_configure_project_name_and_location.png)
+### 02 - Code - Static helper stub for DI
 
-### 03 - Configure framework and auto mode
+![Screenshot 02](lesson_01_auto_mode_and_di/02_code_as_static_and_add_method_stub_for_di.png)
 
-![Screenshot 03](lesson_00_setup/03_configure_framework_and_auto_mode.png)
+### 03 - Code - Call common services with builder services
 
-### 04 - Run Debug
-
-![Screenshot 04](lesson_00_setup/04_run_debug.png)
+![Screenshot 03](lesson_01_auto_mode_and_di/03_code_call_common_services_with_builder_services.png)
