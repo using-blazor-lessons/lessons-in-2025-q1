@@ -8,6 +8,9 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents();
 
+// Setup DI in Blazor Auto applications for services used on both sides.
+UsingBlazor.Client.CommonServices.ConfigureServices(builder.Services);
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
