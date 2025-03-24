@@ -1,3 +1,4 @@
+
 # "Using Blazor" Lessons in 2025 Q1
 
 Published under MIT No AI Licence:
@@ -9,6 +10,8 @@ Published under MIT No AI Licence:
 It is important to clearify the role of Redux, because there is often a lot of confusion about it.
 First, Redux is an implementation of the Flux pattern. It has its roots in the apple/swift ecosystem, so I have been told (not verified).
 Redux was very successful in the successful SPA frameworks. Secend, it came with the Redux Dev Tools, which is a independent powerful tool, not an inherent part.
+
+### 00 - The Flux Pattern
 
 Itself, the Flux pattern defines a technology independent concept to manage states in a standardized control loop. Later the "inner" control loop was extended by the "outer" control loop.
 
@@ -40,18 +43,54 @@ For the typical timeline of any use case imagine following scenario:
 8. Same like 3, but "showSpinner" is set to false.
 9. Components are rendered and will show the fetched data.
 
-### 00 - View - Program & Program
+### 01 - NuGet - Fluxor
 
-![Screenshot 00](lesson_01_auto_mode_and_di/00_view_program_and_program.png)
+Starting fram the heavy classic Redux there are a lot of implementations of even more lightweight frameworks like "Zustand" in React or embedded like in Angular.
 
-### 01 - Create - Common Services
+And within the Blazor world? We are very happy! We got Fluxor!
+You find this gem on [GitHub Fluxor](https://github.com/mrpmorris/Fluxor) and on [nuget.org](https://www.nuget.org/packages/Fluxor).
 
-![Screenshot 01](lesson_01_auto_mode_and_di/01_create_common_services.png)
+![Screenshot 01](lesson_02_statemanagement_with_flux/01_nuget_fluxor_blazor_web.png)
 
-### 02 - Code - Static helper stub for DI
+**Auto Mode**
+Add the Fluxor to both of your project `UsingBlazor` and `UsingBlazor.Client`.
 
-![Screenshot 02](lesson_01_auto_mode_and_di/02_code_as_static_and_add_method_stub_for_di.png)
+### 02 - Code - Add to CommonServices
 
-### 03 - Code - Call common services with builder services
+As we already prepared the `CommonServices` we have to add Fluxor once to DI.
 
-![Screenshot 03](lesson_01_auto_mode_and_di/03_code_call_common_services_with_builder_services.png)
+```
+using Fluxor;
+
+namespace UsingBlazor.Client;
+
+public static class CommonServices
+{
+    public static void ConfigureServices(IServiceCollection services)
+    {
+        var currentAssembly = typeof(Program).Assembly;
+        services.AddFluxor(options => options.ScanAssemblies(currentAssembly));
+    }
+}
+```
+
+As you see Fluxor comes with extension methods for the `IServiceCollection`. The `FluxorOptions` need to know where it should look for types with Fluxor annotations.
+We have two assemblies which may contain Fluxor annotations: `UsingBlazor` and `UsingBlazor.Client`. Both will call `CommonServices.ConfigureServices`.
+In both cases `typeof(Program).Assembly` deliver the `currentAssembly` correctly. This needs to be extended, so keep that in mind for later lessons.
+
+### 03 - Run - Counter without Fluxor
+
+Let's run the app and inspect the Counter page from Microsoft's demo pages.
+
+1. Navigate to *Counter*.
+2. Click multiple time on *Click me*. Current count is increasing as expected.
+
+![Screenshot 02](lesson_02_statemanagement_with_flux/02_run_counter_without_fluxor_clicks.png)
+
+3. Navigate to *Home*.
+4. Navigate to *Counter*.
+
+![Screenshot 03](lesson_02_statemanagement_with_flux/03_run_counter_without_fluxor_reset.png)
+
+As you can see the previous data is lost.
+
