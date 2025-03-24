@@ -23,21 +23,22 @@ Remarks: Who feels reminded of WPF MVVM is not wrong. The intention of decouplin
 The outer control loop defines
 - Effects - consumers (and producers) to standardize remote requests and their reasults into the flux pattern.
 
+
 ![Screenshot 00](lesson_02_statemanagement_with_flux/00_Flux.drawio.png)
+
 
 Its important to understand the timing behind. The inner control loop is local and always faster than the remote working outer control loop.
 For the typical timeline of any use case imagine following scenario:
 
-(1) A user defines some filters and sends out a query to a bigger database in the backend. Therfore an action is dispached in the code, containing the filter's data.
-(2) ALL Reducers which match the action type receive the action and apply it to the related stores. When more than one store should be affected, you need one reducer per store.
-(3) Related stores are updated and bound components are marked for rerendering. In our case, the data is not fetched till now. So a boolean called "showSpinner" is set to true.
-(4) Components are rendered and will show a spinner instead of a datatable.
-
-(5) When (2) is performed ALL effects which match the action type receive the action as well.
-(6) Responses to these request will take some time and the results are dispatched again. Trick: Every response is an action.
-(7) Same like (2)
-(8) Same like (3)
-(9) Same like (4)
+1. A user defines some filters and sends out a query to a bigger database in the backend. Therfore an action is dispached in the code, containing the filter's data.
+2. ALL Reducers which match the action type receive the action and apply it to the related stores. When more than one store should be affected, you need one reducer per store.
+3. Related stores are updated and bound components are marked for rerendering. In our case, the data is not fetched till now. So a boolean called "showSpinner" is set to true.
+4. Components are rendered and will show a spinner instead of a datatable.
+5. When (2) is performed ALL effects which match the action type receive the action as well.
+6. Responses to these request will take some time and the results are dispatched again. Trick: Every response is an action, same like 1.
+7. Same like 2.
+8. Same like 3, but "showSpinner" is set to false.
+9. Components are rendered and will show the fetched data.
 
 ### 00 - View - Program & Program
 
