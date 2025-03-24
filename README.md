@@ -4,24 +4,40 @@ Published under MIT No AI Licence:
 
 - [License](LICENSE.md)
 
-## Lesson 01 - Auto Mode and DI
+## Lesson 02 - State Management with the Flux pattern
 
-Additionally to existing Blazor Render Modes
-- Static server-side
-- Interactive server-side
-- Interactive WebAssembly client-side
+It is important to clearify the role of Redux, because there is often a lot of confusion about it.
+First, Redux is an implementation of the Flux pattern. It has its roots in the apple/swift ecosystem, so I have been told (not verified).
+Redux was very successful in the successful SPA frameworks. Secend, it came with the Redux Dev Tools, which is a independent powerful tool, not an inherent part.
 
-Microsoft introduced with .NET 8.0
-- Interactive Auto
+Itself, the Flux pattern defines a technology independent concept to manage states in a standardized control loop. Later the "inner" control loop was extended by the "outer" control loop.
 
-In the Auto Render Mode pages are rendered first on server side, later on client side.
-This results in various questions to the code structure:
-Where to place Components?
-How to handle runtime behavior in the application lifecycle, expecially the dependency injection?
+The inner control loop defines
+- Components - produce Actions by user interactions or technical triggers.
+- Dispatcher - takes occuring Actions and dispatches them to consumers.
+- Reducers - the consumers of the inner control loop.
+- Stores - Immutable in memory states, used as data sources for Components.
 
-Good things first: at compile-time most things are settled.
-Open point: dependency injection
-Question: in which di-container-instance is an instance?
+Remarks: Who feels reminded of WPF MVVM is not wrong. The intention of decoupling is the same.
+
+The outer control loop defines
+- Effects - consumers (and producers) to standardize remote requests and their reasults into the flux pattern.
+
+![Screenshot 00](lesson_02_statemanagement_with_flux/00_Flux.drawio.png)
+
+Its important to understand the timing behind. The inner control loop is local and always faster than the remote working outer control loop.
+For the typical timeline of any use case imagine following scenario:
+
+(1) A user defines some filters and sends out a query to a bigger database in the backend. Therfore an action is dispached in the code, containing the filter's data.
+(2) ALL Reducers which match the action type receive the action and apply it to the related stores. When more than one store should be affected, you need one reducer per store.
+(3) Related stores are updated and bound components are marked for rerendering. In our case, the data is not fetched till now. So a boolean called "showSpinner" is set to true.
+(4) Components are rendered and will show a spinner instead of a datatable.
+
+(5) When (2) is performed ALL effects which match the action type receive the action as well.
+(6) Responses to these request will take some time and the results are dispatched again. Trick: Every response is an action.
+(7) Same like (2)
+(8) Same like (3)
+(9) Same like (4)
 
 ### 00 - View - Program & Program
 
