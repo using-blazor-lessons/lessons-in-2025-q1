@@ -181,7 +181,7 @@ public class CounterState
 
 Finally, we are ready to change the `Counter.razor`.
 
-**Original**
+#### Original
 ```
 @page "/counter"
 @rendermode InteractiveAuto
@@ -204,7 +204,7 @@ Finally, we are ready to change the `Counter.razor`.
 }
 ```
 
-**Using, Inherits and Injects**
+#### Using, Inherits and Injects
 First we inherit the component from `FluxorComponent`. This allows to subscribe to Fluxor events.
 Then `IDispatcher` and `CounterStore` are injected.
 
@@ -235,7 +235,7 @@ Then `IDispatcher` and `CounterStore` are injected.
 }
 ```
 
-**Dispatch Action**
+#### Dispatch Action
 (Yes, the predicate could be inlined.)
 ```
 @page "/counter"
@@ -261,7 +261,7 @@ Then `IDispatcher` and `CounterStore` are injected.
 }
 ```
 
-**Replace local variable and bind to the Store**
+#### Replace local variable and bind to the Store
 ```
 @page "/counter"
 @rendermode InteractiveAuto
