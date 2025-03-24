@@ -92,5 +92,224 @@ Let's run the app and inspect the Counter page from Microsoft's demo pages.
 
 ![Screenshot 03](lesson_02_statemanagement_with_flux/03_run_counter_without_fluxor_reset.png)
 
-As you can see the previous data is lost.
+As you can see the previous data is lost. Now we will change that.
 
+### 04 - Code - Enable StoreInitializer
+
+Before any store can work, we have add the `Fluxor.Blazor.Web.StoreInitializer` component to the `App.razor` in the `UsingBlazor` project.
+
+**Auto Mode**
+For Interactive Auto mode the attribute `@rendermode` on the component has to be set to `"new InteractiveAutoRenderMode()"`.
+
+```
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["UsingBlazor.styles.css"]" />
+    <ImportMap />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <HeadOutlet />
+    <Fluxor.Blazor.Web.StoreInitializer @rendermode="new InteractiveAutoRenderMode()" />
+</head>
+
+<body>
+    <Routes />
+    <script src="_framework/blazor.web.js"></script>
+</body>
+
+</html>
+</html>
+```
+
+### 05 - Code - Create the Actions
+
+First, we define the required actions. The only requirement is simple: the user clicks a button and count is incremented.
+So we define the action `Increment` in a new classfile `CounterActions`.
+
+**Recommendations**
+- Place the file directly to the `Counter.razor`.
+- Use `record struct` to ensure immutability out-of-the-box.
+
+**Clarifications**
+- The outer static class is just usedto group Api members. There is no need or functional effect besides that.
+
+```
+namespace UsingBlazor.Client.Pages;
+
+public static class CounterActions
+{
+    public record struct Increment();
+}
+```
+
+### 04 - Code - Create the Store
+
+Next, we implement the `CounterStore`. Stores have to be immutable. So we provide a read-only property which stores the `ClickCount`.
+Then two constructors are required. A default contructor for the initialization, setting the `ClickCount` to `0`.
+The second constructor is used to create a new store instance with the values of the previous.
+The class needs to be annotated with `[FeatureState]`. This is one of the attributes Fluxor is scanning assemblies for.
+
+**Recommendations**
+- Place the file directly to the `Counter.razor`.
+
+```
+using Fluxor;
+
+namespace UsingBlazor.Client.Pages;
+
+[FeatureState]
+public class CounterState
+{
+    public int ClickCount { get; }
+
+    public CounterState() { } // Required for creating initial state.
+
+    public CounterState(int clickCount)
+    {
+        ClickCount = clickCount;
+    }
+}
+```
+
+### 06 - Code - Using Store and Dispatcher in a Fluxor Component
+
+Finally, we are ready to change the `Counter.razor`.
+
+**Original**
+```
+@page "/counter"
+@rendermode InteractiveAuto
+
+<PageTitle>Counter</PageTitle>
+
+<h1>Counter</h1>
+
+<p role="status">Current count: @currentCount</p>
+
+<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+
+@code {
+    private int currentCount = 0;
+
+    private void IncrementCount()
+    {
+        currentCount++;
+    }
+}
+```
+
+**Using, Inherits and Injects**
+First we inherit the component from `FluxorComponent`. This allows to subscribe to Fluxor events.
+Then `IDispatcher` and `CounterStore` are injected.
+
+```
+@page "/counter"
+@rendermode InteractiveAuto
+
+@using Fluxor
+@inherits Fluxor.Blazor.Web.Components.FluxorComponent
+@inject IState<CounterState> CounterState
+@inject IDispatcher Dispatcher
+
+<PageTitle>Counter</PageTitle>
+
+<h1>Counter</h1>
+
+<p role="status">Current count: @currentCount</p>
+
+<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+
+@code {
+    private int currentCount = 0;
+
+    private void IncrementCount()
+    {
+        currentCount++;
+    }
+}
+```
+
+**Dispatch Action**
+(Yes, the predicate could be inlined.)
+```
+@page "/counter"
+@rendermode InteractiveAuto
+
+@using Fluxor
+@inherits Fluxor.Blazor.Web.Components.FluxorComponent
+@inject IState<CounterState> CounterState
+@inject IDispatcher Dispatcher
+
+<PageTitle>Counter</PageTitle>
+
+<h1>Counter</h1>
+
+<p role="status">Current count: @currentCount</p>
+
+<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+
+@code {
+    private int currentCount = 0;
+
+    private void IncrementCount() => Dispatcher.Dispatch(new CounterActions.Increment());
+}
+```
+
+**Replace local variable and bind to the Store**
+```
+@page "/counter"
+@rendermode InteractiveAuto
+
+@using Fluxor
+@inherits Fluxor.Blazor.Web.Components.FluxorComponent
+@inject IState<CounterState> CounterState
+@inject IDispatcher Dispatcher
+
+<PageTitle>Counter</PageTitle>
+
+<h1>Counter</h1>
+
+<p role="status">Current count: @CounterState.Value.ClickCount</p>
+
+<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+
+@code {
+    private void IncrementCount() => Dispatcher.Dispatch(new CounterActions.Increment());
+}
+```
+
+Success: When you run the app and click the button nothing will happen. ;-P
+
+Joking aside. The business logic (`currentCount++`) is gone.
+
+### 07 - Code - Create the Reducers
+
+Business logic changes data. The data goes to the store. The changes go to the reducers.
+So we define the action `Increment` in a new classfile `CounterReducers`. The method signature is fixed, the name irrelevant.
+
+**Recommendations**
+- Place the file directly to the `Counter.razor`.
+- Make the class static as well.
+
+```
+using Fluxor;
+
+namespace UsingBlazor.Client.Pages;
+
+public static class CounterReducers
+{
+    [ReducerMethod]
+    public static CounterState Increment(CounterState state, CounterActions.Increment _)
+        => new(clickCount: state.ClickCount + 1);
+}
+```
+
+The method returns the new instance of the `CounterState`.
+
+**Run and test. The click counter is preserved now.**
