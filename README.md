@@ -68,15 +68,14 @@ public static class CommonServices
 {
     public static void ConfigureServices(IServiceCollection services)
     {
-        var currentAssembly = typeof(Program).Assembly;
-        services.AddFluxor(options => options.ScanAssemblies(currentAssembly));
+        services.AddFluxor(options => options.ScanAssemblies(typeof(Counter).Assembly));
     }
 }
 ```
 
 As you see Fluxor comes with extension methods for the `IServiceCollection`. The `FluxorOptions` need to know where it should look for types with Fluxor annotations.
 We have two assemblies which may contain Fluxor annotations: `UsingBlazor` and `UsingBlazor.Client`. Both will call `CommonServices.ConfigureServices`.
-In both cases `typeof(Program).Assembly` deliver the `currentAssembly` correctly. This needs to be extended, so keep that in mind for later lessons.
+In both cases `typeof(Counter).Assembly` deliver `UsingBlazor.Client` as assembly which will be scanned. This needs to be extended, so keep that in mind.
 
 ### 03 - Run - Counter without Fluxor
 
