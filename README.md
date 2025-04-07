@@ -116,7 +116,15 @@ In `weather.razor`:
 
 Expected `Weather.razor`:
 ```
+@page "/weather"
+@rendermode InteractiveAuto
+
+@using UsingBlazor.Client.Services;
+@using Fluxor;
+
 @inherits Fluxor.Blazor.Web.Components.FluxorComponent
+
+@inject IWeatherForecastService WeatherForcastService
 @inject IState<WeatherForecastState> WeatherForecastState
 @inject IDispatcher Dispatcher
 @inject IWeatherForecastService WeatherForcastService
