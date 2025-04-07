@@ -1,7 +1,14 @@
 ﻿@page "/weather"
+@rendermode InteractiveAuto
 
 @using UsingBlazor.Client.Services;
-@attribute [StreamRendering]
+@using Fluxor;
+
+@inherits Fluxor.Blazor.Web.Components.FluxorComponent
+
+@inject IWeatherForecastService WeatherForcastService
+@inject IState<WeatherForecastState> WeatherForecastState
+@inject IDispatcher Dispatcher
 @inject IWeatherForecastService WeatherForcastService
 
 <PageTitle>Weather</PageTitle>
@@ -10,7 +17,7 @@
 
 <p>This component demonstrates showing data.</p>
 
-@if (forecasts == null)
+@if (WeatherForecastState.Value.Pending)
 {
     <p><em>Loading...</em></p>
 }
@@ -26,7 +33,7 @@ else
             </tr>
         </thead>
         <tbody>
-            @foreach (var forecast in forecasts)
+            @foreach (var forecast in WeatherForecastState.Value.Forecasts)
             {
                 <tr>
                     <td>@forecast.Date.ToShortDateString()</td>
@@ -40,8 +47,9 @@ else
 }
 
 @code {
-    private WeatherForecast[]? forecasts;
-
-    protected override async Task OnInitializedAsync()
-        => forecasts = await WeatherForcastService.GetForecastAsync();
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        Dispatcher.Dispatch(new WeatherForecastActions.Request());
+    }
 }
