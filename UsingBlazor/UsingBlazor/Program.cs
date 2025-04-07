@@ -1,4 +1,3 @@
-using UsingBlazor.Client.Pages;
 using UsingBlazor.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,6 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents();
+builder.Services.AddControllers();
 
 // Setup DI in Blazor Auto applications for services used on both sides.
 UsingBlazor.Client.CommonServices.ConfigureServices(builder.Services);
@@ -26,8 +26,6 @@ else
 }
 
 app.UseHttpsRedirection();
-
-
 app.UseAntiforgery();
 
 app.MapStaticAssets();
@@ -35,5 +33,6 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(UsingBlazor.Client._Imports).Assembly);
+app.MapControllers();
 
 app.Run();
