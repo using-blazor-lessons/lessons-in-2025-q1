@@ -5,206 +5,317 @@ Published under MIT No AI Licence:
 
 - [License](LICENSE.md)
 
-## Lesson 04 - State Management with Effects
+## Lesson 05 - Timing, Reducers-only
 
-After learning about the Flux Pattern with Fluxor in Lesson 02 and implementing the `WeatherForecastService` in Lesson 03, now it is on you to put both together by extending your state management with **Effects**.
-Effect are similar to reducers, but working on remote services instead of the Store. When Effects get their data by calling controllers, it is very transparent what is going on. Lets go.
+It is important to get a feeling about the time behavior when working with stores. Therefor we build a new page component - the Watcher. It will use the `DateTime` and `TimeSpan` an 
+keyboard inputs to measure the time costs of simple store updates without effects first.
 
-### 00 - Code - Create the State.
-
-First, a State is required.
+### 00 - Setup - Add the Watcher, its Actions, State and Reducers.
 
 In `UsingBlazor.Client`:
-1. Add a new `class` named `WeatherForecastState` into `UsingBlazor.Client/Pages`.
-2. Annotate `WeatherForecastState` with `[FeatureState]`.
-3. Add the property `public WeatherForeCast[] Forecasts { get; }`.
-4. Add the property `public bool Pending { get; }`.
-5. Add a default constructor which initializes `Forecasts` as empty array and `Pending` as `false`.
-6. Add a parameterized constructor which initializes `Forecasts` and `Pending` by an argument.
+1. Add a new `Razor Component` named `Watcher.razor` into `UsingBlazor.Client/Pages`.
+2. Add a new `class` named `WatcherActions.cs` into `UsingBlazor.Client/Pages`.
+3. Add a new `class` named `WatcherState.cs` into `UsingBlazor.Client/Pages`.
+4. Add a new `class` named `WatcherReducers.cs` into `UsingBlazor.Client/Pages`.
 
-Expected result:
+### 01 - Code - Routing
+
+The `Watcher.razor` starts mostly empty and without a route to it.
+```
+<h3>Watcher</h3>
+
+@code {
+
+}
+```
+
+At top add the pages route:
+`@page "/watcher"`
+
+Additionally we add the rendermode as well:
+`@rendermode InteractiveAuto`
+
+Now we add the new route to the `NavMenu.razor` in `UsingBlazor/Components/Layout` below the existing entries:
+```
+<div class="nav-item px-3">
+    <NavLink class="nav-link" href="watcher">
+        <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Watcher
+    </NavLink>
+</div>
+```
+
+You can already run the app and enjoy your new component.
+
+### 02 - Code - The State.
+
+To observe a states timing behavior we need a state.
+
+1. As before we have to annotate the `WatcherState` with `[FeatureState]`.
+2. Then add two pulic properties: `Created` and `Updated`, both of type `DateTime`.
+3. Add a default and a parameterized constructor.
+
+The result should look like this:
+
 ```
 using Fluxor;
 
 namespace UsingBlazor.Client.Pages;
 
 [FeatureState]
-public class WeatherForecastState
+public class WatcherState
 {
-    public WeatherForecast[] Forecasts { get; }
+    public DateTime Created { get; init; }
+    public DateTime Updated { get; init; }
 
-    public bool Pending { get; }
-
-	public WeatherForecastState()
+    public WatcherState()
     {
-        Forecasts = [];
-        Pending = false;
+        Created = DateTime.Now;
+        Updated = DateTime.Now;
     }
 
-    public WeatherForecastState(WeatherForecast[] forecasts, bool pending)
+    public WatcherState(DateTime created, DateTime updated)
     {
-        Forecasts = forecasts;
-        Pending = pending;
-    }
-}
-```
-
-### 01 - Code - Create the Actions
-
-Second, we need a meaningful Api.
-
-In `UsingBlazor.Client/Pages`:
-1. Add the class `WeatherForecastActions` and change its signature to `public static class WeatherForecastActions`.
-2. Inside add `Request` and `Response`, each as `public record struct`.
-3. Add the argument `WeatherForecast[] Forecasts` to `Response`.
-
-Expected `WeatherForecastActions.cs`:
-```
-namespace UsingBlazor.Client.Pages;
-
-public static class WeatherForecastActions
-{
-    public record struct Request();
-
-    public record struct Response(WeatherForecast[] Forecasts);
-}
-```
-
-### 02 - Code - Create the Reducers
-
-All store changes go through the Reducers, any result of Effects too. So the whole Api should be covered.
-
-In `UsingBlazor.Client/Pages`:
-1. Add the class `WeatherForecastReducers` and change its signature to `public static class WeatherForecastActions`.
-2. Add the methods `Request` and `Response`, each with the signature `public static`. Returntype is always `WeatherForecastState`, the first argument `state` as well. The second argument is the action.
-3. `Request` returns a new state with `forecasts: state.Forecasts, pending: true`.
-4. `Response` returns a new state with `forecasts: response.Forecasts, pending: false`. 
-
-Expected `WeatherForecastReducers.cs`:
-```
-using Fluxor;
-
-namespace UsingBlazor.Client.Pages;
-
-public static class WeatherForecastReducers
-{
-    [ReducerMethod]
-    public static WeatherForecastState Request(WeatherForecastState state, WeatherForecastActions.Request _)
-        => new(forecasts: state.Forecasts, pending: true);
-
-    [ReducerMethod]
-    public static WeatherForecastState Response(WeatherForecastState _, WeatherForecastActions.Response response)
-        => new(forecasts: response.Forecasts, pending: false);
-}
-```
-
-### 03 - Code - Using the State in the Page
-
-Already now, the `weather.razor`-page can be changed to use the `WeatherForecastState`.
-
-In `weather.razor`:
-1. Add `@using Fluxor`.
-2. Add `@inherits Fluxor.Blazor.Web.Components.FluxorComponent` which registers the page in Fluxor.
-3. Add `@inject IState<WeatherForecastState> WeatherForecastState`. Now we can use the Store to modify (and simplify) the remaining code.
-4. Do not forget to `@inject IDispatcher Dispatcher`.
-5. Next, delete the local variable `forecasts`. Your IDE should highlight you the three former usages of it.
-6. Replace `@if (forecasts == null)` with `@if (WeatherForecastState.Value.Pending)`. A nasty null-check less.
-7. Replace ` @foreach (var forecast in forecasts)` with `@foreach (var forecast in WeatherForecastState.Value.Forecasts)`. Same like before but iterating through the State's data.
-8. Delete `forecasts = await WeatherForcastService.GetForecastAsync();`. As you can see `OnInitializedAsync` is now empty.
-9. Fluxor will handle all async behavior. So instead of using `OnInitializedAsync` we now can use `OnInitialized` to dispatch a `WeatherForecastActions.Request` when the page is initialized.
-10. At last delete `@attribute [StreamRendering]` because rerendering is now triggered by Fluxor. Then add `@rendermode InteractiveAuto` to enable Auto Mode.
-
-Expected `Weather.razor`:
-```
-@page "/weather"
-@rendermode InteractiveAuto
-
-@using UsingBlazor.Client.Services;
-@using Fluxor;
-
-@inherits Fluxor.Blazor.Web.Components.FluxorComponent
-
-@inject IWeatherForecastService WeatherForcastService
-@inject IState<WeatherForecastState> WeatherForecastState
-@inject IDispatcher Dispatcher
-@inject IWeatherForecastService WeatherForcastService
-
-<PageTitle>Weather</PageTitle>
-
-<h1>Weather</h1>
-
-<p>This component demonstrates showing data.</p>
-
-@if (WeatherForecastState.Value.Pending)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th aria-label="Temperature in Celsius">Temp. (C)</th>
-                <th aria-label="Temperature in Farenheit">Temp. (F)</th>
-                <th>Summary</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var forecast in WeatherForecastState.Value.Forecasts)
-            {
-                <tr>
-                    <td>@forecast.Date.ToShortDateString()</td>
-                    <td>@forecast.TemperatureC</td>
-                    <td>@forecast.TemperatureF</td>
-                    <td>@forecast.Summary</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-
-@code {
-    protected override void OnInitialized()
-    {
-        base.OnInitialized();
-        Dispatcher.Dispatch(new WeatherForecastActions.Request());
+        Created = created;
+        Updated = updated;
     }
 }
 ```
 
-**Run and test. `Loading...` will be shown but never updates.**
+### 03 - Code - The Actions.
 
-### 04 - Code - Add the Effects.
+We want to compute when a key is pressed. Like before:
 
-The missing piece is the required Effect of course. After adding it the Weather page will act like expected.
+1. Make the `WatcherActions` `public static`.
+2. Add `public record struct KeyPressed(KeyboardEventArgs KeyboardEventArgs);` as the required action.
 
-In `UsingBlazor.Client/Pages`:
-1. Add the class `WeatherForecastEffects`. Add a constructor, which gets the `IWeatherForecastService` injected and stores it in a property or field.
-2. Instead you can use the new default constructur pattern as well.
-3. Add a method with this signature: `public async Task RequestWeatherForcast(WeatherForecastActions.Request request, IDispatcher dispatcher)`. Annotate it with the attribute `EffectMethod`.
-4. Use the `IWeatherForecastService` to request and await the api call like in Lesson 03.
-5. Create a `WeatherForecastActions.Response` and use the `dispatcher` to dispatch it.
+`KeyboardEventArgs` belongs to namespace `Microsoft.AspNetCore.Components.Web` and we will use it to capture and compute the pressed keys.
 
-Expected `WeatherForecastEffects.cs`:
+### 04 - Code - The Reducers.
+
+Bunding the action and the state together result in the necessary `[ReducerMethod]`. Like before:
+
+1. Make the `WatcherReducers` `public static`.
+2. Add this simple reducer method to it:
+```
+[ReducerMethod]
+public static WatcherState KeyPressed(WatcherState state, WatcherActions.KeyPressed keyPressed) => new(state.Created, DateTime.Now);
+```
+
+Done.
+
+### 05 - Code - The View.
+
+Let's go back to `Watcher.razor`. To design the view we use a simple HTML-Table to show the data we want to see.
+Add this pre-defined table below `<h3>Watcher</h3>`:
 
 ```
-using Fluxor;
-using UsingBlazor.Client.Services;
+<table tabindex="0" cellpadding="10px" @ref="tableReference" @onkeypress=@OnKeyPressed>
+    <tr>
+        <th>Context</th>
+        <th>DateTime</th>
+        <th>Ticks since Store</th>
+        <th>Ticks since Key pressed</th>
+    </tr>
+    <tr>
+        <td>Store initialized</td>
+        <td align="right"></td>
+        <td align="right"></td>
+        <td align="right" />
+    </tr>
+    <tr>
+        <td>Page initialized</td>
+        <td align="right"></td>
+        <td align="right"></td>
+        <td align="right" />
+    </tr>
+    <tr>
+        <td>Key pressed</td>
+        <td align="right"></td>
+        <td align="right"></td>
+        <td align="right"></td>
+    </tr>
+    <tr>
+        <td>Store updated</td>
+        <td align="right"></td>
+        <td align="right"></td>
+        <td align="right"></td>
+    </tr>
+    <tr>
+        <td>Store.StateChanged</td>
+        <td align="right"></td>
+        <td align="right"></td>
+        <td align="right"></td>
+    </tr>
+</table>
+```
 
-namespace UsingBlazor.Client.Pages;
+As long `tableReference` and `OnKeyPressed` cannot be resolved, the you can not run the app. 
+So add `private ElementReference tableReference;` and `private void OnKeyPressed(KeyboardEventArgs args) { }` to the `@code { }` section.
 
-public class WeatherForecastEffects(IWeatherForecastService weatherForecastService)
+Now you can run the app again.
+
+### 06 - Code - Using the Store and local data in the View.
+
+1. We start by inheriting the component from `@inherits Fluxor.Blazor.Web.Components.FluxorComponent`.
+2. Then inject the new store with `@inject IState<WatcherState> WatcherState`.
+3. Now we can bind the first two values into the table. To get a high accuracy in the displayed strings, we will use `.ToString("yyyy-MM-dd HH:mm:ss.fff")` to get the milliseconds.
+4. To measure time, we need add three additional local variables which are simply initialized to UNIX-Epoch. Add them to the `@code` section and resolve the in the table.
+
+```
+private DateTime initializedPageAt = DateTime.UnixEpoch;
+private DateTime keyPressed = DateTime.UnixEpoch;
+private DateTime storeStateChanged = DateTime.UnixEpoch;
+```
+
+The table should look like this:
+
+```
+<table tabindex="0" cellpadding="10px" @ref="tableReference" @onkeypress=@OnKeyPressed>
+    <tr>
+        <th>Context</th>
+        <th>DateTime</th>
+        <th>Ticks since Store</th>
+        <th>Ticks since Key pressed</th>
+    </tr>
+    <tr>
+        <td>Store initialized</td>
+        <td align="right">@WatcherState.Value.Created.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right"></td>
+        <td align="right" />
+    </tr>
+    <tr>
+        <td>Page initialized</td>
+        <td align="right">@initializedPageAt.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right"></td>
+        <td align="right" />
+    </tr>
+    <tr>
+        <td>Key pressed</td>
+        <td align="right">>@keyPressed.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right"></td>
+        <td align="right"></td>
+    </tr>
+    <tr>
+        <td>Store updated</td>
+        <td align="right">@WatcherState.Value.Updated.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right"></td>
+        <td align="right"></td>
+    </tr>
+    <tr>
+        <td>Store.StateChanged</td>
+        <td align="right">@storeStateChanged.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right"></td>
+        <td align="right"></td>
+    </tr>
+</table>
+```
+
+### 06 - Code - Time calculations.
+
+We need some calculations to get meaningful data for us humans. Therefore we add two simple helper methods to the `@code` section:
+
+```
+private long TicksSinceStoreInitialized(DateTime offset) => (offset - WatcherState.Value.Created).Ticks;
+private long TicksSinceKeyPressed(DateTime offset) => (offset - keyPressed).Ticks;
+```
+
+The methods names should be documentation enough. ;-)
+
+### 06 - Code - Dispatch KeyPressed Action.
+
+We still miss the dispatched action. To enable this, please:
+
+1. Inject the dispatcher with `@inject IDispatcher Dispatcher`.
+2. Add `Dispatcher.Dispatch(new WatcherActions.KeyPressed(args));` to the local `OnKeyPressed` method.
+
+If you debug now the app, you will recognize that `OnKeyPressed` is not triggered. The reason is, that the table need focus first. And yes, after each rendering.
+Blazor offers us appropriate method to override and this is where we needed the `tableReference` for:
+
+3. Override `OnAfterRenderAsync` like this:
+
+```
+protected override async Task OnAfterRenderAsync(bool firstRender)
 {
-    [EffectMethod]
-    public async Task RequestWeatherForcast(WeatherForecastActions.Request request, IDispatcher dispatcher)
-    {
-        var forcasts = await weatherForecastService.GetForecastAsync();
-        dispatcher.Dispatch(new WeatherForecastActions.Response(forcasts));
-    }
+    if (firstRender)
+        await tableReference.FocusAsync();
 }
 ```
 
-**Run and test. Data will be updated by the controller again.**
+Run the app and you may use WASD to observe that the `Store updated` row is updated properly.
 
-Note: Of course the data changes because it is everytime requested you enter the page again.
+### 07 - Code - Collect additional data.
+
+Still, the three local variables `initializedPageAt`, `keyPressed` and `storeStateChanged` for measurements are not set.
+
+1. Most easy is `keyPressed`. Add `keyPressed = DateTime.Now;` into the `OnKeyPressed` before the dispatcher is called.
+2. When you guess that `initializedPageAt = DateTime.Now;` should placed in the override of `OnInitialized` you are right.
+
+Important to know and understand is, that each Fluxor Store has a useful `StateChanged`. This will be used for the last variable `storeStateChanged`.
+
+3. Therefore add a `EventHandler` to the `WatcherState.StateChanged` event in the overridden `OnInitialized`. It assigns `storeStateChanged = DateTime.Now;`.
+4. When testing you app later you will recognize, that this value is not updated. The reason is that you have to trigger a re-rendering manually from the code behind with `StateHasChanged();`.
+
+The `OnInitialized` should look like that:
+
+```
+protected override void OnInitialized()
+{
+    base.OnInitialized();
+
+    initializedPageAt = DateTime.Now;
+
+    WatcherState.StateChanged += (sender, e) =>
+    {
+        storeStateChanged = DateTime.Now;
+        StateHasChanged();
+    };
+}
+```
+
+### 08 - Code - Put all together.
+
+Finally you can add all remaining values and calculations into the table by using `TicksSinceStoreInitialized` and `TicksSinceKeyPressed`:
+
+```
+<table tabindex="0" cellpadding="10px" @ref="tableReference" @onkeypress=@OnKeyPressed>
+    <tr>
+        <th>Context</th>
+        <th>DateTime</th>
+        <th>Ticks since Store</th>
+        <th>Ticks since Key pressed</th>
+    </tr>
+    <tr>
+        <td>Store initialized</td>
+        <td align="right">@WatcherState.Value.Created.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right">@TicksSinceStoreInitialized(WatcherState.Value.Created)</td>
+        <td align="right" />
+    </tr>
+    <tr>
+        <td>Page initialized</td>
+        <td align="right">@initializedPageAt.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right">@TicksSinceStoreInitialized(initializedPageAt)</td>
+        <td align="right" />
+    </tr>
+    <tr>
+        <td>Key pressed</td>
+        <td align="right">@keyPressed.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right">@TicksSinceStoreInitialized(keyPressed)</td>
+        <td align="right">@TicksSinceKeyPressed(keyPressed)</td>
+    </tr>
+    <tr>
+        <td>Store updated</td>
+        <td align="right">@WatcherState.Value.Updated.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right">@TicksSinceStoreInitialized(WatcherState.Value.Updated)</td>
+        <td align="right">@TicksSinceKeyPressed(WatcherState.Value.Updated)</td>
+    </tr>
+    <tr>
+        <td>Store.StateChanged</td>
+        <td align="right">@storeStateChanged.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right">@TicksSinceStoreInitialized(storeStateChanged)</td>
+        <td align="right">@TicksSinceKeyPressed(storeStateChanged)</td>
+    </tr>
+</table>
+```
+
+When you now run the app, the cunched number will give you a good impressing of the initialization sequence of store and page.
+Also, how fast and in which sequence store changes are computed.
