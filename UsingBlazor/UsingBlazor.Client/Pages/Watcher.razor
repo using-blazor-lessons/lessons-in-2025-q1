@@ -1,0 +1,85 @@
+﻿@page "/watcher"
+@rendermode InteractiveAuto
+
+@using Fluxor;
+
+@inherits Fluxor.Blazor.Web.Components.FluxorComponent
+@inject IState<WatcherState> WatcherState
+@inject IDispatcher Dispatcher
+
+<h3>Watcher</h3>
+
+<table tabindex="0" cellpadding="10px" @ref="tableReference" @onkeypress=@OnKeyPressed>
+    <tr>
+        <th>Context</th>
+        <th>DateTime</th>
+        <th>Ticks since Store</th>
+        <th>Ticks since Key pressed</th>
+    </tr>
+    <tr>
+        <td>Store initialized</td>
+        <td align="right">@WatcherState.Value.Created.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right">@TicksSinceStoreInitialized(WatcherState.Value.Created)</td>
+        <td align="right" />
+    </tr>
+    <tr>
+        <td>Page initialized</td>
+        <td align="right">@initializedPageAt.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right">@TicksSinceStoreInitialized(initializedPageAt)</td>
+        <td align="right" />
+    </tr>
+    <tr>
+        <td>Key pressed</td>
+        <td align="right">@keyPressed.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right">@TicksSinceStoreInitialized(keyPressed)</td>
+        <td align="right">@TicksSinceKeyPressed(keyPressed)</td>
+    </tr>
+    <tr>
+        <td>Store updated</td>
+        <td align="right">@WatcherState.Value.Updated.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right">@TicksSinceStoreInitialized(WatcherState.Value.Updated)</td>
+        <td align="right">@TicksSinceKeyPressed(WatcherState.Value.Updated)</td>
+    </tr>
+    <tr>
+        <td>Store.StateChanged</td>
+        <td align="right">@storeStateChanged.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+        <td align="right">@TicksSinceStoreInitialized(storeStateChanged)</td>
+        <td align="right">@TicksSinceKeyPressed(storeStateChanged)</td>
+    </tr>
+</table>
+
+@code {
+    private ElementReference tableReference;
+
+    private DateTime initializedPageAt = DateTime.UnixEpoch;
+    private DateTime keyPressed = DateTime.UnixEpoch;
+    private DateTime storeStateChanged = DateTime.UnixEpoch;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+
+        initializedPageAt = DateTime.Now;
+
+        WatcherState.StateChanged += (sender, e) =>
+        {
+            storeStateChanged = DateTime.Now;
+            StateHasChanged();
+        };
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await tableReference.FocusAsync();
+    }
+
+    private void OnKeyPressed(KeyboardEventArgs args)
+    {
+        keyPressed = DateTime.Now;
+        Dispatcher.Dispatch(new WatcherActions.KeyPressed(args));
+    }
+
+    private long TicksSinceStoreInitialized(DateTime offset) => (offset - WatcherState.Value.Created).Ticks;
+    private long TicksSinceKeyPressed(DateTime offset) => (offset - keyPressed).Ticks;
+}
