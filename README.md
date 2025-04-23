@@ -7,7 +7,7 @@ Published under MIT No AI Licence:
 
 ## Lesson 05 - Timing, Reducers-only
 
-It is important to get a feeling about the time behavior when working with stores. Therefor we build a new page component - the Watcher. It will use the `DateTime` and `TimeSpan` an 
+It is important to get a feeling about the time behavior when working with stores. Therefor we build a new page component - the Watcher. It will use the `DateTime`, `TimeSpan` and 
 keyboard inputs to measure the time costs of simple store updates without effects first.
 
 ### 00 - Setup - Add the Watcher, its Actions, State and Reducers.
@@ -17,6 +17,8 @@ In `UsingBlazor.Client`:
 2. Add a new `class` named `WatcherActions.cs` into `UsingBlazor.Client/Pages`.
 3. Add a new `class` named `WatcherState.cs` into `UsingBlazor.Client/Pages`.
 4. Add a new `class` named `WatcherReducers.cs` into `UsingBlazor.Client/Pages`.
+
+![Screenshot 00](lesson_05_timing_reducers_only/00_add_razor_component.png)
 
 ### 01 - Code - Routing
 
@@ -35,7 +37,7 @@ At top add the pages route:
 Additionally we add the rendermode as well:
 `@rendermode InteractiveAuto`
 
-Now we add the new route to the `NavMenu.razor` in `UsingBlazor/Components/Layout` below the existing entries:
+Now add the new route to the `NavMenu.razor` in `UsingBlazor/Components/Layout` below the existing entries:
 ```
 <div class="nav-item px-3">
     <NavLink class="nav-link" href="watcher">
@@ -48,7 +50,7 @@ You can already run the app and enjoy your new component.
 
 ### 02 - Code - The State.
 
-To observe a states timing behavior we need a state.
+To observe a state's timing behavior we need a state.
 
 1. As before we have to annotate the `WatcherState` with `[FeatureState]`.
 2. Then add two pulic properties: `Created` and `Updated`, both of type `DateTime`.
@@ -83,12 +85,14 @@ public class WatcherState
 
 ### 03 - Code - The Actions.
 
-We want to compute when a key is pressed. Like before:
+Our requirement is, that the state is computed when a key is pressed. Like before:
 
 1. Make the `WatcherActions` `public static`.
 2. Add `public record struct KeyPressed(KeyboardEventArgs KeyboardEventArgs);` as the required action.
 
 `KeyboardEventArgs` belongs to namespace `Microsoft.AspNetCore.Components.Web` and we will use it to capture and compute the pressed keys.
+
+Done.
 
 ### 04 - Code - The Reducers.
 
@@ -158,8 +162,8 @@ Now you can run the app again.
 
 1. We start by inheriting the component from `@inherits Fluxor.Blazor.Web.Components.FluxorComponent`.
 2. Then inject the new store with `@inject IState<WatcherState> WatcherState`.
-3. Now we can bind the first two values into the table. To get a high accuracy in the displayed strings, we will use `.ToString("yyyy-MM-dd HH:mm:ss.fff")` to get the milliseconds.
-4. To measure time, we need add three additional local variables which are simply initialized to UNIX-Epoch. Add them to the `@code` section and resolve the in the table.
+3. Now we can bind the first two values into the table. For high accuracy in the displayed strings, we will use `.ToString("yyyy-MM-dd HH:mm:ss.fff")` to get the milliseconds there.
+4. To measure time, we need to add three additional local variables which are simply initialized to UNIX-Epoch. Add them to the `@code` section, resolve them in the table as well.
 
 ```
 private DateTime initializedPageAt = DateTime.UnixEpoch;
@@ -212,24 +216,24 @@ The table should look like this:
 
 ### 06 - Code - Time calculations.
 
-We need some calculations to get meaningful data for us humans. Therefore we add two simple helper methods to the `@code` section:
+We need some calculations to crunch down meaningful data for us humans. Therefore we add two simple helper methods to the `@code` section:
 
 ```
 private long TicksSinceStoreInitialized(DateTime offset) => (offset - WatcherState.Value.Created).Ticks;
 private long TicksSinceKeyPressed(DateTime offset) => (offset - keyPressed).Ticks;
 ```
 
-The methods names should be documentation enough. ;-)
+The method names should be documentation enough. ;-)
 
 ### 06 - Code - Dispatch KeyPressed Action.
 
-We still miss the dispatched action. To enable this, please:
+We still miss the dispatched action. To enable this, do as follows:
 
 1. Inject the dispatcher with `@inject IDispatcher Dispatcher`.
 2. Add `Dispatcher.Dispatch(new WatcherActions.KeyPressed(args));` to the local `OnKeyPressed` method.
 
-If you debug now the app, you will recognize that `OnKeyPressed` is not triggered. The reason is, that the table need focus first. And yes, after each rendering.
-Blazor offers us appropriate method to override and this is where we needed the `tableReference` for:
+If you debug now the app, you will recognize that `OnKeyPressed` is not triggered. The reason is, that the table needs focus first. And yes, after each rendering.
+Blazor offers us an appropriate method to override and this is where we need the `tableReference` for:
 
 3. Override `OnAfterRenderAsync` like this:
 
@@ -250,12 +254,12 @@ Still, the three local variables `initializedPageAt`, `keyPressed` and `storeSta
 1. Most easy is `keyPressed`. Add `keyPressed = DateTime.Now;` into the `OnKeyPressed` before the dispatcher is called.
 2. When you guess that `initializedPageAt = DateTime.Now;` should placed in the override of `OnInitialized` you are right.
 
-Important to know and understand is, that each Fluxor Store has a useful `StateChanged`. This will be used for the last variable `storeStateChanged`.
+Important to know: each Fluxor Store comes with a useful `StateChanged` event. This will be used for the last variable `storeStateChanged`.
 
 3. Therefore add a `EventHandler` to the `WatcherState.StateChanged` event in the overridden `OnInitialized`. It assigns `storeStateChanged = DateTime.Now;`.
-4. When testing you app later you will recognize, that this value is not updated. The reason is that you have to trigger a re-rendering manually from the code behind with `StateHasChanged();`.
+4. When testing you app later, you will recognize that this value is not updated. The reason is that you have to trigger a re-rendering manually from the code behind with `StateHasChanged();`.
 
-The `OnInitialized` should look like that:
+The `OnInitialized` should now look like that:
 
 ```
 protected override void OnInitialized()
@@ -317,5 +321,5 @@ Finally you can add all remaining values and calculations into the table by usin
 </table>
 ```
 
-When you now run the app, the cunched number will give you a good impressing of the initialization sequence of store and page.
+When you now run the app, the cunched numbers will give you a good impression of the initialization sequence of store and page.
 Also, how fast and in which sequence store changes are computed.
