@@ -64,7 +64,7 @@
         WatcherState.StateChanged += (sender, e) =>
         {
             storeStateChanged = DateTime.Now;
-            StateHasChanged();
+            InvokeAsync(() => StateHasChanged());
         };
     }
 

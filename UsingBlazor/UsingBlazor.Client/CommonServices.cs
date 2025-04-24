@@ -16,5 +16,6 @@ public static class CommonServices
         });
         services.AddFluxor(options => options.ScanAssemblies(typeof(Counter).Assembly));
         services.AddScoped<IWeatherForecastService, WeatherForecastService>();
+        services.AddScoped<HubConnectionService>();
     }
 }

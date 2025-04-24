@@ -10,6 +10,8 @@
     <ProjectReference Include="..\UsingBlazor.Client\UsingBlazor.Client.csproj" />
     <PackageReference Include="Fluxor.Blazor.Web" Version="6.6.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.0.0" />
+    <PackageReference Include="System.Reactive" Version="6.0.1" />
+    <PackageReference Include="System.Reactive.Linq" Version="6.0.1" />
   </ItemGroup>
 
 </Project>

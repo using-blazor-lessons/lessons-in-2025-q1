@@ -11,6 +11,8 @@
   <ItemGroup>
     <PackageReference Include="Fluxor.Blazor.Web" Version="6.6.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client.Core" Version="9.0.4" />
   </ItemGroup>
 
 </Project>
