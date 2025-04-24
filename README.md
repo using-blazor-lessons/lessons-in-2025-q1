@@ -5,321 +5,208 @@ Published under MIT No AI Licence:
 
 - [License](LICENSE.md)
 
-## Lesson 05 - Timing, Reducers-only
+## Lesson 06 - Effects with SignalR
 
-It is important to get a feeling about the time behavior when working with stores. Therefor we build a new page component - the Watcher. It will use the `DateTime`, `TimeSpan` and 
-keyboard inputs to measure the time costs of simple store updates without effects first.
+It is time to learn how effects can be used together with SignalR. Based on the Watcher page, we will implement following features:
+1. When the user does not push a button, the backend should send no-button-pressed notification to the frontend each 100 milliseconds.
+2. When the user does push a button, the backend should send no notifications for 1 second.
 
-### 00 - Setup - Add the Watcher, its Actions, State and Reducers.
+[Microsoft Learn](https://learn.microsoft.com/en-us/aspnet/core/blazor/tutorials/signalr-blazor?view=aspnetcore-9.0&tabs=visual-studio) provides serveral Tutorials for SignalR (Core) in Blazor.
+The plus of this lesson will be, that we cover the whole roundtrip beween frontend and backend. Let's go.
 
-In `UsingBlazor.Client`:
-1. Add a new `Razor Component` named `Watcher.razor` into `UsingBlazor.Client/Pages`.
-2. Add a new `class` named `WatcherActions.cs` into `UsingBlazor.Client/Pages`.
-3. Add a new `class` named `WatcherState.cs` into `UsingBlazor.Client/Pages`.
-4. Add a new `class` named `WatcherReducers.cs` into `UsingBlazor.Client/Pages`.
+### 00 - Code - Extend Actions and Reducers
 
-![Screenshot 00](lesson_05_timing_reducers_only/00_add_razor_component.png)
-
-### 01 - Code - Routing
-
-The `Watcher.razor` starts mostly empty and without a route to it.
-```
-<h3>Watcher</h3>
-
-@code {
-
-}
-```
-
-At top add the pages route:
-`@page "/watcher"`
-
-Additionally we add the rendermode as well:
-`@rendermode InteractiveAuto`
-
-Now add the new route to the `NavMenu.razor` in `UsingBlazor/Components/Layout` below the existing entries:
-```
-<div class="nav-item px-3">
-    <NavLink class="nav-link" href="watcher">
-        <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Watcher
-    </NavLink>
-</div>
-```
-
-You can already run the app and enjoy your new component.
-
-### 02 - Code - The State.
-
-To observe a state's timing behavior we need a state.
-
-1. As before we have to annotate the `WatcherState` with `[FeatureState]`.
-2. Then add two pulic properties: `Created` and `Updated`, both of type `DateTime`.
-3. Add a default and a parameterized constructor.
+The first steps are easy. In `UsingBlazor.Client/Pages`:
+1. Add a new  action `NoKeyPressed` to `WatcherActions`. You can add a property `DateTime TimeStamp` to it.
+2. Add a new reducer method `NoKeyPressed`to `WatcherReducers`, handling `WatcherActions.NoKeyPressend` and does exactly the same like the `KeyPressed` reducer method.
 
 The result should look like this:
-
 ```
-using Fluxor;
-
-namespace UsingBlazor.Client.Pages;
-
-[FeatureState]
-public class WatcherState
+public static class WatcherActions
 {
-    public DateTime Created { get; init; }
-    public DateTime Updated { get; init; }
+    public record struct KeyPressed(KeyboardEventArgs KeyboardEventArgs);
 
-    public WatcherState()
-    {
-        Created = DateTime.Now;
-        Updated = DateTime.Now;
-    }
+    public record struct NoKeyPressed(DateTime TimeStamp);
+}
 
-    public WatcherState(DateTime created, DateTime updated)
-    {
-        Created = created;
-        Updated = updated;
-    }
+public class WatcherEffects(HubConnectionService hubConnectionService)
+{
+    [EffectMethod]
+    public async Task KeyPressed(WatcherActions.KeyPressed keyPressed, IDispatcher _)
+        => await hubConnectionService.PublishToBackendAsync(keyPressed);
 }
 ```
 
-### 03 - Code - The Actions.
+Your store is now ready to manage the new action.
 
-Our requirement is, that the state is computed when a key is pressed. Like before:
+### 01 - Code - The Api Interface
 
-1. Make the `WatcherActions` `public static`.
-2. Add `public record struct KeyPressed(KeyboardEventArgs KeyboardEventArgs);` as the required action.
+Next we need some service in the backend, which can manage the `WatcherActions` as well. To attach later dynamically business logic we will use ReactiveX.
 
-`KeyboardEventArgs` belongs to namespace `Microsoft.AspNetCore.Components.Web` and we will use it to capture and compute the pressed keys.
+1. Add the NuGet package `System.Reactive (6.0.1)` and `System.Reactive.Linq (6.0.1)`.
+2. Add a subfolder named `Services` to `UsingBlazor` in the Solution Explorer.
+3. Add a new interface named `IWatcherApi`.
+4. Add get-able property `KeyPressedNotification` of type `IObservable<WatcherActions.KeyPressed>` to it.
+5. Add method `SendKeyPressedToBackend`, which handles `WatcherActions.KeyPressed`.
+6. Add method `SendNoKeyPressedToFrontend`, which handles `WatcherActions.NoKeyPressed`.
+
+Resulting code:
+```
+public interface IWatcherApi
+{
+    public IObservable<WatcherActions.KeyPressed> KeyPressedNotification { get; }
+
+    public void SendKeyPressedToBackend(WatcherActions.KeyPressed keyPressed);
+
+    public void SendNoKeyPressedToFrontend(WatcherActions.NoKeyPressed noKeyPressed);
+}
+```
+
+### 02 - Code - Setup SignalR and WatcherHub
+
+To enable .NET Core SignalR several parts between backend and frontend are still missing.
+First you have to enable SignalR, which you can do in `UsingBlazor/Program.cs` easily.
+Add this code section directly below the `builder.Services.AddControllers();`:
+
+```
+// SignalR: DI.
+builder.Services.AddSignalR();
+builder.Services.AddResponseCompression(opts =>
+{
+    opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        ["application/octet-stream"]);
+});
+```
+
+Next you need to implement the `Hub` which will be managed by SignalR.
+
+In `UsingBlazor`:
+1. Add folder `Hubs` in the solution explorer.
+2. Add the class `WatcherHub` to it and derive it from `Hub`.
+3. Use the primary constructor to get `IWatcherApi watcher` injected.
+4. Add the method `public void PublishToBackend(WatcherActions.KeyPressed keyPressed) => watcher.SendKeyPressedToBackend(keyPressed);`
+
+PublishToBackend will be mapped to the hub's route, then forwarding `WatcherActions.KeyPressed` to the `IWatcherApi`.
+
+Behind the scenes any `Hub` transient and just alive for a blink of an eye.
+So typically an incoming notification is processed and forwarded to an instance with a longer lifetime scope.
+
+Now it is time to map the `WatcherHub` to a route. That is arcieved in `UsingBlazor/Program.cs` by place the following snippet before
+```
+// SignalR: Map the Hub.
+app.MapHub<WatcherHub>("/PublishToBackend");
+```
 
 Done.
 
-### 04 - Code - The Reducers.
+### 03 - Code - Implement Watcher Api as Service
 
-Bunding the action and the state together result in the necessary `[ReducerMethod]`. Like before:
+Of course the implementation of IWatcherApi is missing. Add a new class named `WatcherApiServices` into `UsingBlazor/Services` and implement `IWatcherApi`.
 
-1. Make the `WatcherReducers` `public static`.
-2. Add this simple reducer method to it:
+Implement as follows:
 ```
-[ReducerMethod]
-public static WatcherState KeyPressed(WatcherState state, WatcherActions.KeyPressed keyPressed) => new(state.Created, DateTime.Now);
-```
-
-Done.
-
-### 05 - Code - The View.
-
-Let's go back to `Watcher.razor`. To design the view we use a simple HTML-Table to show the data we want to see.
-Add this pre-defined table below `<h3>Watcher</h3>`:
-
-```
-<table tabindex="0" cellpadding="10px" @ref="tableReference" @onkeypress=@OnKeyPressed>
-    <tr>
-        <th>Context</th>
-        <th>DateTime</th>
-        <th>Ticks since Store</th>
-        <th>Ticks since Key pressed</th>
-    </tr>
-    <tr>
-        <td>Store initialized</td>
-        <td align="right"></td>
-        <td align="right"></td>
-        <td align="right" />
-    </tr>
-    <tr>
-        <td>Page initialized</td>
-        <td align="right"></td>
-        <td align="right"></td>
-        <td align="right" />
-    </tr>
-    <tr>
-        <td>Key pressed</td>
-        <td align="right"></td>
-        <td align="right"></td>
-        <td align="right"></td>
-    </tr>
-    <tr>
-        <td>Store updated</td>
-        <td align="right"></td>
-        <td align="right"></td>
-        <td align="right"></td>
-    </tr>
-    <tr>
-        <td>Store.StateChanged</td>
-        <td align="right"></td>
-        <td align="right"></td>
-        <td align="right"></td>
-    </tr>
-</table>
-```
-
-As long `tableReference` and `OnKeyPressed` cannot be resolved, the you can not run the app. 
-So add `private ElementReference tableReference;` and `private void OnKeyPressed(KeyboardEventArgs args) { }` to the `@code { }` section.
-
-Now you can run the app again.
-
-### 06 - Code - Using the Store and local data in the View.
-
-1. We start by inheriting the component from `@inherits Fluxor.Blazor.Web.Components.FluxorComponent`.
-2. Then inject the new store with `@inject IState<WatcherState> WatcherState`.
-3. Now we can bind the first two values into the table. For high accuracy in the displayed strings, we will use `.ToString("yyyy-MM-dd HH:mm:ss.fff")` to get the milliseconds there.
-4. To measure time, we need to add three additional local variables which are simply initialized to UNIX-Epoch. Add them to the `@code` section, resolve them in the table as well.
-
-```
-private DateTime initializedPageAt = DateTime.UnixEpoch;
-private DateTime keyPressed = DateTime.UnixEpoch;
-private DateTime storeStateChanged = DateTime.UnixEpoch;
-```
-
-The table should look like this:
-
-```
-<table tabindex="0" cellpadding="10px" @ref="tableReference" @onkeypress=@OnKeyPressed>
-    <tr>
-        <th>Context</th>
-        <th>DateTime</th>
-        <th>Ticks since Store</th>
-        <th>Ticks since Key pressed</th>
-    </tr>
-    <tr>
-        <td>Store initialized</td>
-        <td align="right">@WatcherState.Value.Created.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
-        <td align="right"></td>
-        <td align="right" />
-    </tr>
-    <tr>
-        <td>Page initialized</td>
-        <td align="right">@initializedPageAt.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
-        <td align="right"></td>
-        <td align="right" />
-    </tr>
-    <tr>
-        <td>Key pressed</td>
-        <td align="right">>@keyPressed.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
-        <td align="right"></td>
-        <td align="right"></td>
-    </tr>
-    <tr>
-        <td>Store updated</td>
-        <td align="right">@WatcherState.Value.Updated.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
-        <td align="right"></td>
-        <td align="right"></td>
-    </tr>
-    <tr>
-        <td>Store.StateChanged</td>
-        <td align="right">@storeStateChanged.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
-        <td align="right"></td>
-        <td align="right"></td>
-    </tr>
-</table>
-```
-
-### 06 - Code - Time calculations.
-
-We need some calculations to crunch down meaningful data for us humans. Therefore we add two simple helper methods to the `@code` section:
-
-```
-private long TicksSinceStoreInitialized(DateTime offset) => (offset - WatcherState.Value.Created).Ticks;
-private long TicksSinceKeyPressed(DateTime offset) => (offset - keyPressed).Ticks;
-```
-
-The method names should be documentation enough. ;-)
-
-### 06 - Code - Dispatch KeyPressed Action.
-
-We still miss the dispatched action. To enable this, do as follows:
-
-1. Inject the dispatcher with `@inject IDispatcher Dispatcher`.
-2. Add `Dispatcher.Dispatch(new WatcherActions.KeyPressed(args));` to the local `OnKeyPressed` method.
-
-If you debug now the app, you will recognize that `OnKeyPressed` is not triggered. The reason is, that the table needs focus first. And yes, after each rendering.
-Blazor offers us an appropriate method to override and this is where we need the `tableReference` for:
-
-3. Override `OnAfterRenderAsync` like this:
-
-```
-protected override async Task OnAfterRenderAsync(bool firstRender)
+public class WatcherApiService(IHubContext<WatcherHub> hubContext) : IWatcherApi
 {
-    if (firstRender)
-        await tableReference.FocusAsync();
+    private readonly Subject<WatcherActions.KeyPressed> subjectKeyPressed = new();
+
+    public IObservable<WatcherActions.KeyPressed> KeyPressedNotifications => subjectKeyPressed;
+    
+    public void SendKeyPressedToBackend(WatcherActions.KeyPressed keyPressed) => subjectKeyPressed.OnNext(keyPressed);
+
+    public async void SendNoKeyPressedToFrontend(WatcherActions.NoKeyPressed noKeyPressed) => await hubContext.Clients.All.SendAsync("PublishToFrontend", noKeyPressed);
 }
 ```
 
-Run the app and you may use WASD to observe that the `Store updated` row is updated properly.
+The new service allows you to add rx handlers later, to implement any custom business logic.
 
-### 07 - Code - Collect additional data.
+At last you have to add `WatcherApiServices` to the DI and use it. Back in `UsingBlazor/Program.cs` add
 
-Still, the three local variables `initializedPageAt`, `keyPressed` and `storeStateChanged` for measurements are not set.
-
-1. Most easy is `keyPressed`. Add `keyPressed = DateTime.Now;` into the `OnKeyPressed` before the dispatcher is called.
-2. When you guess that `initializedPageAt = DateTime.Now;` should placed in the override of `OnInitialized` you are right.
-
-Important to know: each Fluxor Store comes with a useful `StateChanged` event. This will be used for the last variable `storeStateChanged`.
-
-3. Therefore add a `EventHandler` to the `WatcherState.StateChanged` event in the overridden `OnInitialized`. It assigns `storeStateChanged = DateTime.Now;`.
-4. When testing you app later, you will recognize that this value is not updated. The reason is that you have to trigger a re-rendering manually from the code behind with `StateHasChanged();`.
-
-The `OnInitialized` should now look like that:
+1. Add `builder.Services.AddSingleton<IWatcherApi, WatcherApiService>();` below `CommonServices` declaration.
+2. Require the singleton and put it into a local variable with directly below `app.MapHub<WatcherHub>("/PublishToBackend");`.
+3. At last add the following lines. They implement the business logic for the feature, defines at the lesson start.
 
 ```
-protected override void OnInitialized()
+var watcher = app.Services.GetRequiredService<IWatcherApi>();
+var dtLastKeyPressed = DateTime.Now;
+var subscription = watcher.KeyPressedNotifications.Subscribe(keyPressed => dtLastKeyPressed = DateTime.Now);
+var task = Task.Run(() =>
 {
-    base.OnInitialized();
-
-    initializedPageAt = DateTime.Now;
-
-    WatcherState.StateChanged += (sender, e) =>
+    while (true)
     {
-        storeStateChanged = DateTime.Now;
-        StateHasChanged();
-    };
+        Thread.Sleep(100);
+        if ((DateTime.Now - dtLastKeyPressed).Seconds > 1)
+            watcher.SendNoKeyPressedToFrontend(new WatcherActions.NoKeyPressed());
+    }
+});
+```
+Run and test the app. Still no data is exchanged.
+
+### 04 - Code - Frontend's SignalR part
+
+Now you have to do just two more things. The hard one first - you need a steady connection to the backend. Otherwise you will not get any `WatcherAction.NoKeyPressed` notification.
+
+In `UsingBlazor.Client`:
+1. Add the NuGet package `Microsoft.AspNetCore.SignalR.Client (9.0.4)`.
+2. Add a new class named `HubConnectionService`.
+3. Create a constructor, which gets `NavigationManager` the `IDispatcher` injected. The `IDispatcher` should initialize a member.
+4. Now you can setup a `HubConnection` in the constructor. The `HubConnectionBuilder` defines the route to the backend's `Hub`.
+5. You can attach now API elements to the resulting `HubConnection`, simply by using `On<>`. Be aware that each type is bound to one `methodName`.
+
+```
+HubConnection = new HubConnectionBuilder()
+    .WithUrl(navigationManager.ToAbsoluteUri("/PublishToBackend"))
+    .WithAutomaticReconnect()
+    .Build();
+
+HubConnection.On<WatcherActions.NoKeyPressed>("PublishToFrontend", PublishToFrontend);
+```
+
+6. Then add the implementation of `PublishToFrontend`. Some console logging improves your developer experience, when searching for bugs.
+
+```
+private void PublishToFrontend(WatcherActions.NoKeyPressed noKeyPressed)
+{
+    Console.WriteLine($"Received {noKeyPressed}");
+    dispatcher.Dispatch(noKeyPressed);
 }
 ```
 
-### 08 - Code - Put all together.
-
-Finally you can add all remaining values and calculations into the table by using `TicksSinceStoreInitialized` and `TicksSinceKeyPressed`:
+7. Add a comfort method here, which automatically starts the `HubConnection` when it is not connected:
 
 ```
-<table tabindex="0" cellpadding="10px" @ref="tableReference" @onkeypress=@OnKeyPressed>
-    <tr>
-        <th>Context</th>
-        <th>DateTime</th>
-        <th>Ticks since Store</th>
-        <th>Ticks since Key pressed</th>
-    </tr>
-    <tr>
-        <td>Store initialized</td>
-        <td align="right">@WatcherState.Value.Created.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
-        <td align="right">@TicksSinceStoreInitialized(WatcherState.Value.Created)</td>
-        <td align="right" />
-    </tr>
-    <tr>
-        <td>Page initialized</td>
-        <td align="right">@initializedPageAt.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
-        <td align="right">@TicksSinceStoreInitialized(initializedPageAt)</td>
-        <td align="right" />
-    </tr>
-    <tr>
-        <td>Key pressed</td>
-        <td align="right">@keyPressed.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
-        <td align="right">@TicksSinceStoreInitialized(keyPressed)</td>
-        <td align="right">@TicksSinceKeyPressed(keyPressed)</td>
-    </tr>
-    <tr>
-        <td>Store updated</td>
-        <td align="right">@WatcherState.Value.Updated.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
-        <td align="right">@TicksSinceStoreInitialized(WatcherState.Value.Updated)</td>
-        <td align="right">@TicksSinceKeyPressed(WatcherState.Value.Updated)</td>
-    </tr>
-    <tr>
-        <td>Store.StateChanged</td>
-        <td align="right">@storeStateChanged.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
-        <td align="right">@TicksSinceStoreInitialized(storeStateChanged)</td>
-        <td align="right">@TicksSinceKeyPressed(storeStateChanged)</td>
-    </tr>
-</table>
+public async Task PublishToBackendAsync(WatcherActions.KeyPressed keyPressed)
+{
+    if (HubConnection.State is not HubConnectionState.Connected)
+        await HubConnection.StartAsync();
+
+    await HubConnection.SendAsync("PublishToBackend", keyPressed);
+}
 ```
 
-When you now run the app, the cunched numbers will give you a good impression of the initialization sequence of store and page.
-Also, how fast and in which sequence store changes are computed.
+8. Dependency Injection in Auto Mode >> Please add the `HubConnectionService` as scoped in `CommonServices` with 
+
+```
+services.AddScoped<HubConnectionService>();
+```
+
+9. At last you want a continuously opened `HubConnectionService`. Therefore you above `await host.RunAsync();` in `UsingBlazor.Client/Program.cs` add
+
+```
+var hubConnectionService = host.Services.GetRequiredService<HubConnectionService>();
+```
+
+Compile and run.
+
+### 05 - Code - The Effect
+
+All is set, except the required effect. In `UsingBlazor.Client/Pages`, please add a new class named `WatcherEffects` and implement it as follows:
+
+```
+public class WatcherEffects(HubConnectionService hubConnectionService)
+{
+    [EffectMethod]
+    public async Task KeyPressed(WatcherActions.KeyPressed keyPressed, IDispatcher _) => await hubConnectionService.PublishToBackendAsync(keyPressed);
+}
+```
+
+Compile, run and test the WATCHER. The backend is WATCHING you. ;o)
